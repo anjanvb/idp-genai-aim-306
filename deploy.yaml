@@ -1,0 +1,110 @@
+  AWSTemplateFormatVersion: 2010-09-09
+
+  Description: Continuous deployment infrastructure for sample calculator application
+
+  Resources:
+    CodeBuildRole:
+      Type: "AWS::IAM::Role"
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                Service:
+                  - "codebuild.amazonaws.com"
+              Action:
+                - "sts:AssumeRole"
+        Policies:
+          - PolicyName: "CodeBuildPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "sts:AssumeRole"
+                  Resource:
+                    - "arn:aws:iam::*:role/cdk-*"
+                - Effect: "Allow"
+                  Action:
+                    - "logs:CreateLogGroup"
+                    - "logs:CreateLogStream"
+                    - "logs:PutLogEvents"
+                  Resource:
+                    Fn::Join: 
+                    - ""
+                    - - 'arn:aws:logs:'
+                      - !Ref AWS::Region
+                      - ':'
+                      - !Ref AWS::AccountId
+                      - ':log-group:/aws/codebuild/*'
+                    # - "arn:aws:logs:${AWS:Region}:${AWS:AccountId}:log-group:/aws/codebuild/*"
+                - Effect: "Allow"
+                  Action:
+                    - "s3:PutObject"
+                    - "s3:GetObject"
+                    - "s3:GetObjectVersion"
+                    - "s3:GetBucketAcl"
+                    - "s3:GetBucketLocation"
+                  Resource:
+                    - "*"
+                - Effect: "Allow"
+                  Action:
+                    - "cloudformation:CreateChangeSet"
+                    - "cloudformation:DeleteStack"
+                    - "cloudformation:DescribeChangeSet"
+                    - "cloudformation:DescribeStackEvents"
+                    - "cloudformation:DescribeStacks"
+                    - "cloudformation:ExecuteChangeSet"
+                    - "cloudformation:GetTemplate"
+                  Resource:
+                    - "arn:aws:cloudformation:*:*:stack/CDKToolkit/*"
+                - Effect: "Allow"
+                  Action:
+                    - "codebuild:CreateReportGroup"
+                    - "codebuild:CreateReport"
+                    - "codebuild:UpdateReport"
+                    - "codebuild:BatchPutTestCases"
+                    - "codebuild:BatchPutCodeCoverages"
+                  Resource:
+                    Fn::Join: 
+                    - ""
+                    - - 'arn:aws:codebuild:'
+                      - !Ref AWS::Region
+                      - ':'
+                      - !Ref AWS::AccountId
+                      - ':report-group/cb-report-group-1'
+                    # - "arn:aws:codebuild:${AWS:Region}:${AWS:AccountId}:report-group/report-group-name-1"
+    CodeBuildProject:
+      Type: AWS::CodeBuild::Project
+      Properties:
+        Name: IDPCodeBuild
+        ServiceRole: !GetAtt CodeBuildRole.Arn
+        Source:
+          Type: NO_SOURCE
+        Environment:
+          Type: LINUX_CONTAINER
+          ComputeType: BUILD_GENERAL1_SMALL
+          Image: aws/codebuild/standard:5.0
+        Artifacts:
+          Type: NO_ARTIFACTS
+        Source:
+          Type: NO_SOURCE
+          BuildSpec: |
+            version: 0.2
+            phases:
+              install:
+                commands:
+                  - npm install -g aws-cdk
+              pre_build:
+                commands:
+                  - git clone https://github.com/anjanvb/idp-genai-aim-306.git
+                  - cd idp-genai-aim-306
+                  - pip install -r requirements.txt
+                  - cdk bootstrap
+              build:
+                commands:
+                  - cdk deploy SimpleAsyncWorkflow --outputs-file simple_async_workflow.json --require-approval never
+              post_build:
+                commands:
+                  - cat simple_async_workflow.json

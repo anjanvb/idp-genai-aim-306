@@ -1,0 +1,7 @@
+{
+  "SimpleAsyncWorkflow": {
+    "DocumentUploadLocation": "s3://simpleasyncworkflow-textractsimpleasyncworkflow2d-1i9mk2nxbi9ku/uploads/",
+    "StepFunctionFlowLink": "https://us-east-1.console.aws.amazon.com/states/home?region=us-east-1#/statemachines/view/arn:aws:states:us-east-1:965425568475:stateMachine:SimpleAsyncWorkflow462ECA3D-taKDqY1BUvMz",
+    "StartStepFunctionLambdaLogGroup": "/aws/lambda/SimpleAsyncWorkflow-LambdaStartStepFunctionGeneric-sHXfDc2qYdjS"
+  }
+}

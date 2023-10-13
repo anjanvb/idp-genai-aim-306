@@ -41,7 +41,7 @@ cdk bootstrap
 Deploy stack
 
 ```
-sudo cdk deploy SimpleAsyncWorkflow --outputs-file simple_async_workflow.json --require-approval never
+cdk deploy SimpleAsyncWorkflow --outputs-file simple_async_workflow.json --require-approval never
 ```
 
 

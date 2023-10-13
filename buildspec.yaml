@@ -1,0 +1,19 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - apt-get install -y python-pip
+  pre_build:
+    commands:
+      - git clone https://github.com/anjanvb/idp-genai-aim-306.git
+      - cd idp-genai-aim-306
+      - pip install -r requirements.txt
+  build:
+    commands:
+      - cdk bootstrap aws://<account-id>/<region>
+  post_build:
+    commands:
+      - cdk deploy SimpleAsyncWorkflow --outputs-file simple_async_workflow.json --require-approval never
+      - cat simple_async_workflow.json
+
