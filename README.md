@@ -1,3 +1,10 @@
+Deploy using AWS Cloudformation
+
+- Edit the [deploy.yaml](./deploy.yaml) to update the schedule CRON to run it once. For example `cron(0 19 13 10 ? 2023)` means the CodeBuild project will be triggered to build at 19:00 UTC on Oct 13th, 2023.
+- Add the [deploy.yaml](./deploy.yaml) using a Cloudformation Stack and deploy.
+  
+---
+
 From Cloud Shell 
 
 Upgrade CDK CLI

@@ -38,7 +38,6 @@
                       - ':'
                       - !Ref AWS::AccountId
                       - ':log-group:/aws/codebuild/*'
-                    # - "arn:aws:logs:${AWS:Region}:${AWS:AccountId}:log-group:/aws/codebuild/*"
                 - Effect: "Allow"
                   Action:
                     - "s3:PutObject"
@@ -74,7 +73,6 @@
                       - ':'
                       - !Ref AWS::AccountId
                       - ':report-group/cb-report-group-1'
-                    # - "arn:aws:codebuild:${AWS:Region}:${AWS:AccountId}:report-group/report-group-name-1"
     CodeBuildProject:
       Type: AWS::CodeBuild::Project
       Properties:
@@ -108,3 +106,13 @@
               post_build:
                 commands:
                   - cat simple_async_workflow.json
+    CodeBuildTrigger:
+      Type: AWS::Events::Rule
+      Properties:
+        Description: "Trigger the CodeBuild project"
+        ScheduleExpression: "cron(0 19 13 10 ? 2023)"
+        State: "ENABLED"
+        Targets:
+          - Arn: !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/${CodeBuildProject}"
+            Id: "CodeBuildProjectTrigger"
+            RoleArn: !GetAtt CodeBuildRole.Arn
