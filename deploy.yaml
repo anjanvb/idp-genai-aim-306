@@ -1,6 +1,6 @@
   AWSTemplateFormatVersion: 2010-09-09
 
-  Description: Continuous deployment infrastructure for sample calculator application
+  Description: Continuous deployment infrastructure for IDP CDK Stack
 
   Resources:
     CodeBuildRole:
