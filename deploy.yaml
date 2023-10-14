@@ -2,6 +2,12 @@
 
   Description: Continuous deployment infrastructure for IDP CDK Stack
 
+  Parameters:
+    RepoURL:
+      Type: String
+      Description: The Github Repository to be cloned into SageMaker Domain
+      Default: 'https://github.com/aws-samples/aws-ai-intelligent-document-processing'
+
   Resources:
     LambdaExecutionRole:
       Type: "AWS::IAM::Role"
@@ -116,8 +122,12 @@
           Type: LINUX_CONTAINER
           ComputeType: BUILD_GENERAL1_SMALL
           Image: aws/codebuild/standard:5.0
+          EnvironmentVariables:
+            - Name: REPO_URL
+              Type: PLAINTEXT
+              Value: !Ref RepoURL
         Artifacts:
-          Type: NO_ARTIFACTS
+          Type: NO_ARTIFACTS        
         Source:
           Type: NO_SOURCE
           BuildSpec: |
@@ -128,7 +138,7 @@
                   - npm install -g aws-cdk
               pre_build:
                 commands:
-                  - git clone https://github.com/anjanvb/idp-genai-aim-306.git
+                  - git clone $REPO_URL
                   - cd idp-genai-aim-306
                   - pip install -r requirements.txt
                   - cdk bootstrap
@@ -148,12 +158,15 @@
             import boto3            
             import cfnresponse
             cb = boto3.client('codebuild')
-            def lambda_handler(event, context):                
-                try:
-                    resp = cb.start_build(projectName="IDPCodeBuild")
-                    cfnresponse.send(event, context, cfnresponse.SUCCESS, {'Message': "CodeBuild build started"},'')
-                except Exception as e:
-                    cfnresponse.send(event, context, cfnresponse.FAILED, {'Message': "Unable to start CodeBuild build"}, '')
+            def lambda_handler(event, context):   
+                if 'RequestType' in event and event['RequestType'] == 'Create':             
+                    try:
+                        resp = cb.start_build(projectName="IDPCodeBuild")
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, {'Message': "CodeBuild build started"},'')
+                    except Exception as e:
+                        cfnresponse.send(event, context, cfnresponse.FAILED, {'Message': "Unable to start CodeBuild build"}, '')
+                elif 'RequestType' in event and event['RequestType'] == 'Delete':
+                    cfnresponse.send(event, context, cfnresponse.SUCCESS, {'Message': "Custom resource deleted"},'')
         Description: Starts the IDP CDK flow build
         Handler: index.lambda_handler
         MemorySize: 128
