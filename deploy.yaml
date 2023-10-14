@@ -3,6 +3,40 @@
   Description: Continuous deployment infrastructure for IDP CDK Stack
 
   Resources:
+    LambdaExecutionRole:
+      Type: "AWS::IAM::Role"
+      Properties:
+        Description: 'Lambda Role for Cloudformation'
+        Policies:
+          - PolicyName: cb-access
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - codebuild:StartBuild
+                  Resource: 
+                    Fn::Join: 
+                    - ""
+                    - - 'arn:aws:codebuild:'
+                      - !Ref AWS::Region
+                      - ':'
+                      - !Ref AWS::AccountId
+                      - ':project/*'
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action:
+                - "sts:AssumeRole"
+        Path: /
+        ManagedPolicyArns:
+          - 'arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess'
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
     CodeBuildRole:
       Type: "AWS::IAM::Role"
       Properties:
@@ -13,7 +47,6 @@
               Principal:
                 Service:
                   - "codebuild.amazonaws.com"
-                  - "events.amazonaws.com"
               Action:
                 - "sts:AssumeRole"
         Policies:
@@ -74,24 +107,11 @@
                       - ':'
                       - !Ref AWS::AccountId
                       - ':report-group/cb-report-group-1'
-                - Effect: "Allow"
-                  Action:
-                    - "codebuild:StartBuild"
-                  Resource: 
-                    Fn::Join: 
-                    - ""
-                    - - 'arn:aws:codebuild:'
-                      - !Ref AWS::Region
-                      - ':'
-                      - !Ref AWS::AccountId
-                      - ':project/*'
     CodeBuildProject:
       Type: AWS::CodeBuild::Project
       Properties:
         Name: IDPCodeBuild
         ServiceRole: !GetAtt CodeBuildRole.Arn
-        Source:
-          Type: NO_SOURCE
         Environment:
           Type: LINUX_CONTAINER
           ComputeType: BUILD_GENERAL1_SMALL
@@ -118,13 +138,29 @@
               post_build:
                 commands:
                   - cat simple_async_workflow.json
-    CodeBuildTrigger:
-      Type: AWS::Events::Rule
+    
+    BuildCodeBuildLambda:
+      Type: AWS::Lambda::Function
       Properties:
-        Description: "Trigger the CodeBuild project"
-        ScheduleExpression: "cron(0 21 13 10 ? 2023)"
-        State: "ENABLED"
-        Targets:
-          - Arn: !Sub "arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/${CodeBuildProject}"
-            Id: "CodeBuildProjectTrigger"
-            RoleArn: !GetAtt CodeBuildRole.Arn
+        FunctionName: BuildCodeBuildLambda
+        Code:
+          ZipFile: |          
+            import boto3            
+            import cfnresponse
+            cb = boto3.client('codebuild')
+            def lambda_handler(event, context):                
+                try:
+                    resp = cb.start_build(projectName="IDPCodeBuild")
+                    cfnresponse.send(event, context, cfnresponse.SUCCESS, {'Message': "CodeBuild build started"},'')
+                except Exception as e:
+                    cfnresponse.send(event, context, cfnresponse.FAILED, {'Message': "Unable to start CodeBuild build"}, '')
+        Description: Starts the IDP CDK flow build
+        Handler: index.lambda_handler
+        MemorySize: 128
+        Role: !GetAtt LambdaExecutionRole.Arn
+        Runtime: python3.9
+        Timeout: 5
+    BuildCodeBuild:
+      Type: Custom::ResourceForStartingCodeBuild
+      Properties:
+        ServiceToken: !GetAtt BuildCodeBuildLambda.Arn
