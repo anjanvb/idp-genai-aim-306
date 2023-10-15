@@ -148,7 +148,30 @@
               post_build:
                 commands:
                   - cat simple_async_workflow.json
-    
+    # Destroy CDK Workflow
+    CodeBuildProjectDestroy:
+      Type: AWS::CodeBuild::Project
+      Properties:
+        Name: IDPCodeBuildWorkflowDestroy
+        ServiceRole: !GetAtt CodeBuildRole.Arn
+        Environment:
+          Type: LINUX_CONTAINER
+          ComputeType: BUILD_GENERAL1_SMALL
+          Image: aws/codebuild/standard:5.0
+        Artifacts:
+          Type: NO_ARTIFACTS
+        Source:
+          Type: NO_SOURCE
+          BuildSpec: |
+            version: 0.2
+            phases:
+              install:
+                commands:
+                  - npm install -g aws-cdk              
+              build:
+                commands:
+                  - cdk destroy SimpleAsyncWorkflow --force
+
     BuildCodeBuildLambda:
       Type: AWS::Lambda::Function
       Properties:
@@ -166,7 +189,11 @@
                     except Exception as e:
                         cfnresponse.send(event, context, cfnresponse.FAILED, {'Message': "Unable to start CodeBuild build"}, '')
                 elif 'RequestType' in event and event['RequestType'] == 'Delete':
-                    cfnresponse.send(event, context, cfnresponse.SUCCESS, {'Message': "Custom resource deleted"},'')
+                    try:
+                        resp = cb.start_build(projectName="IDPCodeBuildWorkflowDestroy")
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, {'Message': "CodeBuild to destroy workflow started"},'')
+                    except Exception as e:
+                        cfnresponse.send(event, context, cfnresponse.FAILED, {'Message': "Unable to start CodeBuild build for workflow destroy"}, '')
         Description: Starts the IDP CDK flow build
         Handler: index.lambda_handler
         MemorySize: 128
